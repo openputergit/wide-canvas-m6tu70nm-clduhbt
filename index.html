@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office Attendance Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<style>
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f0f9ff;
+    }
+    .attendance-card {
+        transition: all 0.3s ease;
+    }
+    .attendance-card:hover {
+        transform: translateY(-2px);
+    }
+</style>
+<body>
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm">
+            <nav class="container mx-auto px-4 py-4">
+                <div class="flex justify-between items-center">
+                    <h1 class="text-xl font-bold text-gray-800">
+                        <i class="bi bi-calendar-check text-blue-600"></i>
+                        Attendance Manager
+                    </h1>
+                    <div class="flex items-center gap-4">
+                        <span class="text-gray-600" id="currentTime"></span>
+                        <button id="profileBtn" class="p-2 rounded-full bg-blue-100 text-blue-600">
+                            <i class="bi bi-person-circle text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-8">
+            <div class="max-w-2xl mx-auto">
+                <!-- Date Display -->
+                <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800" id="currentDate"></h2>
+                    <p class="text-gray-600 mt-2" id="currentDay"></p>
+                </div>
+
+                <!-- Attendance Card -->
+                <div class="bg-white rounded-lg shadow-sm p-6 attendance-card">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800">Today's Attendance</h3>
+                        <span id="statusBadge" class="px-3 py-1 rounded-full text-sm font-medium"></span>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-gray-600">Check-in Time</p>
+                                <p id="checkInTime" class="font-semibold">-</p>
+                            </div>
+                            <button id="checkInBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                                Check In
+                            </button>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-gray-600">Check-out Time</p>
+                                <p id="checkOutTime" class="font-semibold">-</p>
+                            </div>
+                            <button id="checkOutBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50" disabled>
+                                Check Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Section -->
+                <div class="mt-8">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Attendance History</h3>
+                    <div id="historyList" class="space-y-4">
+                        <!-- History items will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Initialize variables
+        let isCheckedIn = false;
+        let attendanceHistory = JSON.parse(localStorage.getItem('attendanceHistory')) || [];
+
+        // DOM Elements
+        const currentTimeEl = document.getElementById('currentTime');
+        const currentDateEl = document.getElementById('currentDate');
+        const currentDayEl = document.getElementById('currentDay');
+        const checkInBtn = document.getElementById('checkInBtn');
+        const checkOutBtn = document.getElementById('checkOutBtn');
+        const checkInTimeEl = document.getElementById('checkInTime');
+        const checkOutTimeEl = document.getElementById('checkOutTime');
+        const statusBadge = document.getElementById('statusBadge');
+        const historyList = document.getElementById('historyList');
+
+        // Update current time
+        function updateCurrentTime() {
+            const now = new Date();
+            currentTimeEl.textContent = now.toLocaleTimeString();
+            currentDateEl.textContent = now.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            currentDayEl.textContent = now.toLocaleDateString('en-US', { weekday: 'long' });
+        }
+
+        setInterval(updateCurrentTime, 1000);
+        updateCurrentTime();
+
+        // Check if already checked in today
+        function checkTodayAttendance() {
+            const today = new Date().toLocaleDateString();
+            const todayAttendance = attendanceHistory.find(record => 
+                new Date(record.date).toLocaleDateString() === today
+            );
+
+            if (todayAttendance) {
+                isCheckedIn = true;
+                checkInTimeEl.textContent = todayAttendance.checkIn;
+                checkInBtn.disabled = true;
+                checkOutBtn.disabled = false;
+
+                if (todayAttendance.checkOut) {
+                    checkOutTimeEl.textContent = todayAttendance.checkOut;
+                    checkOutBtn.disabled = true;
+                    statusBadge.textContent = 'Completed';
+                    statusBadge.classList.add('bg-green-100', 'text-green-800');
+                } else {
+                    statusBadge.textContent = 'In Progress';
+                    statusBadge.classList.add('bg-blue-100', 'text-blue-800');
+                }
+            } else {
+                statusBadge.textContent = 'Not Started';
+                statusBadge.classList.add('bg-gray-100', 'text-gray-800');
+            }
+        }
+
+        // Handle Check In
+        checkInBtn.addEventListener('click', () => {
+            const now = new Date();
+            const checkInTime = now.toLocaleTimeString();
+            
+            attendanceHistory.unshift({
+                date: now,
+                checkIn: checkInTime,
+                checkOut: null
+            });
+
+            localStorage.setItem('attendanceHistory', JSON.stringify(attendanceHistory));
+            
+            checkInTimeEl.textContent = checkInTime;
+            checkInBtn.disabled = true;
+            checkOutBtn.disabled = false;
+            isCheckedIn = true;
+            
+            statusBadge.textContent = 'In Progress';
+            statusBadge.classList.remove('bg-gray-100', 'text-gray-800');
+            statusBadge.classList.add('bg-blue-100', 'text-blue-800');
+            
+            updateHistory();
+        });
+
+        // Handle Check Out
+        checkOutBtn.addEventListener('click', () => {
+            const now = new Date();
+            const checkOutTime = now.toLocaleTimeString();
+            
+            attendanceHistory[0].checkOut = checkOutTime;
+            localStorage.setItem('attendanceHistory', JSON.stringify(attendanceHistory));
+            
+            checkOutTimeEl.textContent = checkOutTime;
+            checkOutBtn.disabled = true;
+            
+            statusBadge.textContent = 'Completed';
+            statusBadge.classList.remove('bg-blue-100', 'text-blue-800');
+            statusBadge.classList.add('bg-green-100', 'text-green-800');
+            
+            updateHistory();
+        });
+
+        // Update History List
+        function updateHistory() {
+            historyList.innerHTML = '';
+            
+            attendanceHistory.slice(0, 5).forEach(record => {
+                const date = new Date(record.date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                });
+
+                const historyItem = document.createElement('div');
+                historyItem.className = 'bg-white rounded-lg shadow-sm p-4';
+                historyItem.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="font-medium text-gray-800">${date}</p>
+                            <p class="text-sm text-gray-600">
+                                In: ${record.checkIn} ${record.checkOut ? `• Out: ${record.checkOut}` : ''}
+                            </p>
+                        </div>
+                        <span class="px-2 py-1 rounded-full text-sm ${
+                            record.checkOut 
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-blue-100 text-blue-800'
+                        }">
+                            ${record.checkOut ? 'Completed' : 'In Progress'}
+                        </span>
+                    </div>
+                `;
+                historyList.appendChild(historyItem);
+            });
+        }
+
+        // Initial load
+        checkTodayAttendance();
+        updateHistory();
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
